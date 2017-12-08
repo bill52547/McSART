@@ -10,7 +10,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, mxArray const *prhs[])
 #define OUT_IMG plhs[0]
 // #define OUT_ERR plhs[1]
 
-int nx, ny, nz, na, nb, numImg, numBytesImg, numSingleProj, numBytesSingleProj;
+int nx, ny, nz, na, nb, numImg, numBytesImg, numSingleProj, numBytesSingleProj, outIter;
 float da, db, ai, bi, SO, SD, dx;
 
 // resolutions of volumes 
@@ -214,6 +214,10 @@ if (mxGetField(ITER_PARA, 0, "lambda") != NULL)
     lambda = (float)mxGetScalar(mxGetField(ITER_PARA, 0, "lambda"));
 else
     mexErrMsgIdAndTxt("MATLAB:badInput","Can't found valid coefficience iter_para.lambda.\n");
+if (mxGetField(ITER_PARA, 0, "outIter") != NULL)
+    outIter = (float)mxGetScalar(mxGetField(ITER_PARA, 0, "outIter"));
+else
+    mexErrMsgIdAndTxt("MATLAB:badInput","Can't found valid coefficience iter_para.outIter.\n");
 
 numProj = numSingleProj * N_view;
 numBytesProj = numProj * sizeof(float);
@@ -390,61 +394,26 @@ cudaCreateTextureObject(&tex_alpha_x, &resDesc, &texDesc, NULL);
 
 // alpha_y
 resDesc.res.array.array = d_alpha_y;
-// memset(&texDesc, 0, sizeof(texDesc));
-// texDesc.addressMode[0] = cudaAddressModeClamp;
-// texDesc.addressMode[1] = cudaAddressModeClamp;
-// texDesc.addressMode[2] = cudaAddressModeClamp;
-// texDesc.filterMode = cudaFilterModeLinear;
-// texDesc.readMode = cudaReadModeElementType;
-// texDesc.normalizedCoords = 0;
 cudaTextureObject_t tex_alpha_y = 0;
 cudaCreateTextureObject(&tex_alpha_y, &resDesc, &texDesc, NULL);
 
 // alpha_z
 resDesc.res.array.array = d_alpha_z;
-// memset(&texDesc, 0, sizeof(texDesc));
-// texDesc.addressMode[0] = cudaAddressModeClamp;
-// texDesc.addressMode[1] = cudaAddressModeClamp;
-// texDesc.addressMode[2] = cudaAddressModeClamp;
-// texDesc.filterMode = cudaFilterModeLinear;
-// texDesc.readMode = cudaReadModeElementType;
-// texDesc.normalizedCoords = 0;
 cudaTextureObject_t tex_alpha_z = 0;
 cudaCreateTextureObject(&tex_alpha_z, &resDesc, &texDesc, NULL);
 
 // beta_x
 resDesc.res.array.array = d_beta_x;
-// memset(&texDesc, 0, sizeof(texDesc));
-// texDesc.addressMode[0] = cudaAddressModeClamp;
-// texDesc.addressMode[1] = cudaAddressModeClamp;
-// texDesc.addressMode[2] = cudaAddressModeClamp;
-// texDesc.filterMode = cudaFilterModeLinear;
-// texDesc.readMode = cudaReadModeElementType;
-// texDesc.normalizedCoords = 0;
 cudaTextureObject_t tex_beta_x = 0;
 cudaCreateTextureObject(&tex_beta_x, &resDesc, &texDesc, NULL);
 
 // beta_y
 resDesc.res.array.array = d_beta_y;
-// memset(&texDesc, 0, sizeof(texDesc));
-// texDesc.addressMode[0] = cudaAddressModeClamp;
-// texDesc.addressMode[1] = cudaAddressModeClamp;
-// texDesc.addressMode[2] = cudaAddressModeClamp;
-// texDesc.filterMode = cudaFilterModeLinear;
-// texDesc.readMode = cudaReadModeElementType;
-// texDesc.normalizedCoords = 0;
 cudaTextureObject_t tex_beta_y = 0;
 cudaCreateTextureObject(&tex_beta_y, &resDesc, &texDesc, NULL);
 
 // beta_z
 resDesc.res.array.array = d_beta_z;
-// memset(&texDesc, 0, sizeof(texDesc));
-// texDesc.addressMode[0] = cudaAddressModeClamp;
-// texDesc.addressMode[1] = cudaAddressModeClamp;
-// texDesc.addressMode[2] = cudaAddressModeClamp;
-// texDesc.filterMode = cudaFilterModeLinear;
-// texDesc.readMode = cudaReadModeElementType;
-// texDesc.normalizedCoords = 0;
 cudaTextureObject_t tex_beta_z = 0;
 cudaCreateTextureObject(&tex_beta_z, &resDesc, &texDesc, NULL);
 
@@ -543,54 +512,47 @@ mxSetDimensions(OUT_IMG, outDim, 4);
 mxSetData(OUT_IMG, mxMalloc(numBytesImg * n_bin));
 float *h_outimg = (float*)mxGetData(OUT_IMG);
 
-// OUT_ERR = mxCreateNumericMatrix(n_iter, 1, mxSINGLE_CLASS, mxREAL);
-// float *h_outerr = (float*)mxGetData(OUT_ERR), temp_err[1];
-// cublasHandle_t handle;
-
 copyParams.kind = cudaMemcpyDeviceToDevice;
 
-
-// for (int i = 0; i < n_iter; i++)
-//     mexPrintf("=");mexEvalString("drawnow;");
-// mexPrintf("\n");mexEvalString("drawnow;");
-// cudaMemcpy(d_img, h_img, numBytesImg, cudaMemcpyHostToDevice);
 for (int ibin = 0; ibin < n_bin; ibin++){
-    if (ibin < 1){
-        cudaMemcpy(d_img1, h_img + (n_bin - 1) * numImg, numBytesImg, cudaMemcpyHostToDevice);
-    }
-//     // cudaMemcpy(d_img1, h_img, numBytesImg, cudaMemcpyHostToDevice);
-    if (ibin == 0){
-        volume = ref_volumes[0] - ref_volumes[n_bin - 1];
-        flow = ref_flows[0] - ref_flows[n_bin - 1];
+    if (outIter == 0)
+    {
+        cudaMemcpy(d_img, h_img, numBytesImg, cudaMemcpyHostToDevice);
     }
     else{
-        volume = ref_volumes[ibin] - ref_volumes[ibin - 1];
-        flow = ref_flows[ibin] - ref_flows[ibin - 1];
-    }
-    kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, tex_alpha_x, tex_alpha_y, tex_alpha_z, tex_beta_x, tex_beta_y, tex_beta_z, volume, flow, nx, ny, nz);
-    cudaDeviceSynchronize();
+        if (ibin < 1){
+            cudaMemcpy(d_img1, h_img + (n_bin - 1) * numImg, numBytesImg, cudaMemcpyHostToDevice);
+        }
+        if (ibin == 0){
+            volume = ref_volumes[0] - ref_volumes[n_bin - 1];
+            flow = ref_flows[0] - ref_flows[n_bin - 1];
+        }
+        else{
+            volume = ref_volumes[ibin] - ref_volumes[ibin - 1];
+            flow = ref_flows[ibin] - ref_flows[ibin - 1];
+        }
+        kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, tex_alpha_x, tex_alpha_y, tex_alpha_z, tex_beta_x, tex_beta_y, tex_beta_z, volume, flow, nx, ny, nz);
+        cudaDeviceSynchronize();
 
-    // copy img to pitched pointer and bind it to a texture object
-    cudaPitchedPtr dp_img = make_cudaPitchedPtr((void*) d_img1, nx * sizeof(float), nx, ny);
-    copyParams.srcPtr = dp_img;
-    copyParams.dstArray = array_img;
-    cudaStat = cudaMemcpy3D(&copyParams);   
-    if (cudaStat != cudaSuccess) {
-        mexPrintf("Failed to copy dp_img to array memory array_img.\n");
-        mexPrintf("Error code %d: %s\n",cudaStat,cudaGetErrorString(cudaStat));
-            mexErrMsgIdAndTxt("MATLAB:cudaFail","SART failed.\n");
-    }
-    resDesc.res.array.array = array_img;
-    cudaCreateTextureObject(&tex_img, &resDesc, &texDesc, NULL);
+        // copy img to pitched pointer and bind it to a texture object
+        cudaPitchedPtr dp_img = make_cudaPitchedPtr((void*) d_img1, nx * sizeof(float), nx, ny);
+        copyParams.srcPtr = dp_img;
+        copyParams.dstArray = array_img;
+        cudaStat = cudaMemcpy3D(&copyParams);   
+        if (cudaStat != cudaSuccess) {
+            mexPrintf("Failed to copy dp_img to array memory array_img.\n");
+            mexPrintf("Error code %d: %s\n",cudaStat,cudaGetErrorString(cudaStat));
+                mexErrMsgIdAndTxt("MATLAB:cudaFail","SART failed.\n");
+        }
+        resDesc.res.array.array = array_img;
+        cudaCreateTextureObject(&tex_img, &resDesc, &texDesc, NULL);
 
-    kernel_deformation<<<gridSize_img, blockSize>>>(d_img, tex_img, d_mx, d_my, d_mz, nx, ny, nz);
-    cudaDeviceSynchronize();
+        kernel_deformation<<<gridSize_img, blockSize>>>(d_img, tex_img, d_mx, d_my, d_mz, nx, ny, nz);
+        cudaDeviceSynchronize();
+    }
 
     for (int iter = 0; iter < n_iter; iter++){ // iteration
         processBar(ibin, n_bin, iter, n_iter);
-        // initial guesses of each bin
-        // mexPrintf("Dealing with ibin = %d.\n", ibin); mexEvalString("drawnow;");
-        
         for (int i_view = n_views[ibin]; i_view < n_views[ibin + 1]; i_view++){ // view
         
             angle = angles[i_view];
