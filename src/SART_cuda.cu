@@ -470,7 +470,7 @@ if (cudaStat != cudaSuccess) {
 }
 
 // define tex_mx etc
-cudaTextureObject_t tex_mx = 0, tex_my = 0, tex_mz = 0;
+cudaTextureObject_t tex_mx = 0, tex_my = 0, tex_mz = 0, tex_img = 0;
 
 // setup output images
 OUT_IMG = mxCreateNumericMatrix(0, 0, mxSINGLE_CLASS, mxREAL);
@@ -515,7 +515,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
         for (int i_view = n_views[ibin]; i_view < n_views[ibin + 1]; i_view++){ // view
         
             angle = angles[i_view];
-            volume = ref_volumes[ibin] - ref_volumes[0]
+            volume = ref_volumes[ibin] - ref_volumes[0];
             flow = ref_flows[ibin] - ref_flows[0];
             
             kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, tex_alpha_x, tex_alpha_y, tex_alpha_z, tex_beta_x, tex_beta_y, tex_beta_z, volume, flow, nx, ny, nz);
@@ -577,7 +577,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             kernel_deformation<<<gridSize_img, blockSize>>>(d_singleViewImg, tex_img, d_mx, d_my, d_mz, nx, ny, nz); // d_singleViewImg is for ref-phase 0
             cudaDeviceSynchronize();
 
-            volume = volumes[i_view] - ref_volumes[0]
+            volume = volumes[i_view] - ref_volumes[0];
             flow = flows[i_view] - ref_flows[0];
             
             // generate forwards DVFs: d_mx, d_my, d_mz and inverted DVFs: d_mx, d_my, d_mz
@@ -585,7 +585,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             cudaDeviceSynchronize();
 
             // copy img to pitched pointer and bind it to a texture object
-            cudaPitchedPtr dp_img = make_cudaPitchedPtr((void*) d_singleViewImg, nx * sizeof(float), nx, ny);
+            dp_img = make_cudaPitchedPtr((void*) d_singleViewImg, nx * sizeof(float), nx, ny);
             copyParams.srcPtr = dp_img;
             copyParams.dstArray = array_img;
             cudaStat = cudaMemcpy3D(&copyParams);   
@@ -628,7 +628,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             cudaDeviceSynchronize();
             
             // copy mx etc to pitched pointer and bind it to a texture object
-            cudaPitchedPtr dp_mx = make_cudaPitchedPtr((void*) d_mx, nx * sizeof(float), nx, ny);
+            dp_mx = make_cudaPitchedPtr((void*) d_mx, nx * sizeof(float), nx, ny);
             copyParams.srcPtr = dp_mx;
             copyParams.dstArray = array_mx;
             cudaStat = cudaMemcpy3D(&copyParams);   
@@ -640,7 +640,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             resDesc.res.array.array = array_mx;
             cudaCreateTextureObject(&tex_mx, &resDesc, &texDesc, NULL);
 
-            cudaPitchedPtr dp_my = make_cudaPitchedPtr((void*) d_my, nx * sizeof(float), nx, ny);
+            dp_my = make_cudaPitchedPtr((void*) d_my, nx * sizeof(float), nx, ny);
             copyParams.srcPtr = dp_my;
             copyParams.dstArray = array_my;
             cudaStat = cudaMemcpy3D(&copyParams);   
@@ -652,7 +652,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             resDesc.res.array.array = array_my;
             cudaCreateTextureObject(&tex_my, &resDesc, &texDesc, NULL);
 
-            cudaPitchedPtr dp_mz = make_cudaPitchedPtr((void*) d_mz, nx * sizeof(float), nx, ny);
+            dp_mz = make_cudaPitchedPtr((void*) d_mz, nx * sizeof(float), nx, ny);
             copyParams.srcPtr = dp_mz;
             copyParams.dstArray = array_mz;
             cudaStat = cudaMemcpy3D(&copyParams);   
@@ -696,7 +696,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             resDesc.res.array.array = array_img;
             cudaCreateTextureObject(&tex_img, &resDesc, &texDesc2, NULL);
             
-            volume = ref_volumes[ibin] - ref_volumes[0]
+            volume = ref_volumes[ibin] - ref_volumes[0];
             flow = ref_flows[ibin] - ref_flows[0];
             
             kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, tex_alpha_x, tex_alpha_y, tex_alpha_z, tex_beta_x, tex_beta_y, tex_beta_z, volume, flow, nx, ny, nz);
