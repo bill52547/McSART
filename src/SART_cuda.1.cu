@@ -452,10 +452,6 @@ float *d_mx, *d_my, *d_mz;
 cudaMalloc(&d_mx, numBytesImg);
 cudaMalloc(&d_my, numBytesImg);
 cudaMalloc(&d_mz, numBytesImg);
-float *d_mx2, *d_my2, *d_mz2;
-cudaMalloc(&d_mx2, numBytesImg);
-cudaMalloc(&d_my2, numBytesImg);
-cudaMalloc(&d_mz2, numBytesImg);
 
 
 cudaTextureObject_t tex_img = 0;
@@ -473,7 +469,7 @@ copyParams.kind = cudaMemcpyDeviceToDevice;
 for (int ibin = 0; ibin < n_bin; ibin++){
     if (outIter % 2 == 1)
         break;
-    if (outIter >= 0)
+    if (outIter == 0)
     {
         cudaMemcpy(d_img, h_img + ibin * numImg, numBytesImg, cudaMemcpyHostToDevice);
     }
@@ -514,8 +510,8 @@ for (int ibin = 0; ibin < n_bin; ibin++){
         for (int i_view = n_views[ibin]; i_view < n_views[ibin + 1]; i_view++){ // view
         
             angle = angles[i_view];
-            volume = volumes[i_view];// - ref_volumes[ibin];
-            flow = flows[i_view];// - ref_flows[ibin];
+            volume = volumes[i_view] - ref_volumes[ibin];
+            flow = flows[i_view] - ref_flows[ibin];
             
             // generate forwards DVFs: d_mx, d_my, d_mz and inverted DVFs: d_mx2, d_my2, d_mz2
             kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, tex_alpha_x, tex_alpha_y, tex_alpha_z, tex_beta_x, tex_beta_y, tex_beta_z, volume, flow, nx, ny, nz);
@@ -535,8 +531,8 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             cudaCreateTextureObject(&tex_img, &resDesc, &texDesc, NULL);
 
             // deformed image for i_view, from reference image of the bin          
-            host_invertDVF(d_mx2, d_my2, d_mz2, d_mx, d_my, d_mz, nx, ny, nz, n_iter_invertDVF);
-            kernel_deformation<<<gridSize_img, blockSize>>>(d_tempImg, tex_img, d_mx2, d_my2, d_mz2, nx, ny, nz);
+            
+            kernel_deformation<<<gridSize_img, blockSize>>>(d_tempImg, tex_img, d_mx, d_my, d_mz, nx, ny, nz);
             cudaDeviceSynchronize();
 
             // projection of deformed image from initial guess
@@ -580,11 +576,11 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             resDesc.res.array.array = array_img;
             cudaCreateTextureObject(&tex_img, &resDesc, &texDesc2, NULL);
             
-            // volume = ref_volumes[ibin] - volumes[i_view];
-            // flow = ref_flows[ibin] - flows[i_view];
+            volume = ref_volumes[ibin] - volumes[i_view];
+            flow = ref_flows[ibin] - flows[i_view];
                         
-            // kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, tex_alpha_x, tex_alpha_y, tex_alpha_z, tex_beta_x, tex_beta_y, tex_beta_z, volume, flow, nx, ny, nz);
-            // cudaDeviceSynchronize();
+            kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, tex_alpha_x, tex_alpha_y, tex_alpha_z, tex_beta_x, tex_beta_y, tex_beta_z, volume, flow, nx, ny, nz);
+            cudaDeviceSynchronize();
             
             kernel_deformation<<<gridSize_img, blockSize>>>(d_tempImg, tex_img, d_mx, d_my, d_mz, nx, ny, nz);
             cudaDeviceSynchronize();
@@ -747,9 +743,6 @@ cudaFreeArray(d_beta_z);
 cudaFree(d_mx);
 cudaFree(d_my);
 cudaFree(d_mz);
-cudaFree(d_mx2);
-cudaFree(d_my2);
-cudaFree(d_mz2);
 
 cudaFree(d_proj);
 cudaFree(d_tempImg);
