@@ -547,7 +547,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             // update d_tempProj instead of malloc a new one
             cudaMemcpy(d_proj, h_proj + i_view * numSingleProj, numBytesSingleProj, cudaMemcpyHostToDevice);
 
-            kernel_add<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_proj, 0, na, nb, -1);
+            kernel_add<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_proj, na, nb, 1, -1);
             cudaDeviceSynchronize();
 
 
@@ -676,7 +676,7 @@ for (int ibin = n_bin - 1; ibin > -1; ibin--){
             // update d_tempProj instead of malloc a new one
             cudaMemcpy(d_proj, h_proj + i_view * numSingleProj, numBytesSingleProj, cudaMemcpyHostToDevice);
 
-            kernel_add<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_proj, 0, na, nb, -1);
+            kernel_add<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_proj, na, nb, 1, -1);
             cudaDeviceSynchronize();
 
 
