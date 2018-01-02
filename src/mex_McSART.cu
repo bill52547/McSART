@@ -1,4 +1,4 @@
-#include "SART_cuda.h" // consists all required package and functions
+#include "mex_McSART.h" // consists all required package and functions
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, mxArray const *prhs[])
 {

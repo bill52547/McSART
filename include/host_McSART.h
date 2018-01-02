@@ -20,5 +20,4 @@
 #include "processBar.h"
 #include "host_load_field.h"
 
-
 #endif // _HOST_MCSART_H
