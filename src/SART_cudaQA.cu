@@ -368,7 +368,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             flow = flows[i_view];// - ref_flows[ibin];
             
             // generate forwards DVFs: d_mx, d_my, d_mz and inverted DVFs: d_mx2, d_my2, d_mz2
-            kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z, d_const_x, d_const_y, d_const_z, volume, flow, nx, ny, nz);
+            kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z, d_const_x, d_const_y, d_const_z, volume, flow, 1, nx, ny, nz);
             cudaDeviceSynchronize();
 
             // copy img to pitched pointer and bind it to a texture object
@@ -412,7 +412,8 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             cudaDeviceSynchronize();
 
             kernel_backprojection(d_onesImg, d_tempProj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
-
+            cudaDeviceSynchronize();
+            
             // weighting
             kernel_division<<<gridSize_img, blockSize>>>(d_tempImg, d_onesImg, nx, ny, nz);
             cudaDeviceSynchronize();
