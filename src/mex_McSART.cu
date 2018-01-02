@@ -8,8 +8,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, mxArray const *prhs[])
 #define GEO_PARA prhs[2]
 #define ITER_PARA prhs[3]
 #define OUT_IMG plhs[0]
-// #define OUT_ERR plhs[1]
-
 
 int nx = load_int_field(GEO_PARA, "nx");
 int ny = load_int_field(GEO_PARA, "ny");
@@ -140,8 +138,6 @@ const mwSize outDim[4] = {(mwSize)nx, (mwSize)ny, (mwSize)nz, (mwSize)n_bin};
 mxSetDimensions(OUT_IMG, outDim, 4);
 mxSetData(OUT_IMG, mxMalloc(numBytesImg * n_bin));
 float *h_outimg = (float*)mxGetData(OUT_IMG);
-
-
 
 for (int ibin = 0; ibin < n_bin; ibin++){
     if (outIter % 2 == 1)
