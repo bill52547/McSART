@@ -141,10 +141,10 @@ mxSetDimensions(OUT_IMG, outDim, 4);
 mxSetData(OUT_IMG, mxMalloc(numBytesImg * n_bin));
 float *h_outimg = (float*)mxGetData(OUT_IMG);
 
-plhs[1] = mxCreateNumericMatrix(n_iter, 1, mxSINGLE_CLASS, mxREAL);
+plhs[1] = mxCreateNumericMatrix(n_bin * n_iter, 1, mxSINGLE_CLASS, mxREAL);
 float *h_outnorm = (float*)mxGetData(plhs[1]);
 
-for (int i = 0; i < n_iter; i++)
+for (int i = 0; i < n_iter * n_bin; i++)
 {
     h_outnorm[i] = 0.0f;
 }
@@ -178,7 +178,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
 
         host_deformation(d_img, d_img1, d_mx, d_my, d_mz, nx, ny, nz);
     }
-
+    float errp = 100000000000.0f;
     for (int iter = 0; iter < n_iter; iter++){ // iteration
         processBar(ibin, n_bin, iter, n_iter);
         for (int i_view = n_views[ibin]; i_view < n_views[ibin + 1]; i_view++){ // view
@@ -214,7 +214,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             cudaDeviceSynchronize();
 
             stat = cublasSnrm2(handle, na * nb, d_tempProj, 1, &tempNorm);
-            h_outnorm[iter] += tempNorm;
+            h_outnorm[iter + ibin * n_iter] = (float)sqrt(tempNorm * tempNorm + h_outnorm[iter + ibin * n_iter] * h_outnorm[iter + ibin * n_iter]);
 
             // backprojecting the difference of projections
             kernel_backprojection(d_tempImg, d_tempProj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
@@ -239,10 +239,14 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             kernel_update<<<gridSize_img, blockSize>>>(d_img, d_tempImg2, nx, ny, nz, lambda);
             cudaDeviceSynchronize();          
             // mexPrintf("13");mexEvalString("drawnow;");
-        }  
+        }
+        if (errp > h_outnorm[ibin * n_iter + iter])
+            errp = h_outnorm[ibin * n_iter + iter];
+        else
+            break;
+        cudaMemcpy(d_img1, d_img, numBytesImg, cudaMemcpyDeviceToDevice);
+        cudaMemcpy(h_outimg + ibin * numImg, d_img, numBytesImg, cudaMemcpyDeviceToHost);    
     }
-    cudaMemcpy(d_img1, d_img, numBytesImg, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(h_outimg + ibin * numImg, d_img, numBytesImg, cudaMemcpyDeviceToHost);
 }
 
 for (int ibin = n_bin - 1; ibin > -1; ibin--){
@@ -303,7 +307,7 @@ for (int ibin = n_bin - 1; ibin > -1; ibin--){
             kernel_add<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_proj, na, nb, 1, -1);
             cudaDeviceSynchronize();
             stat = cublasSnrm2(handle, na * nb, d_tempProj, 1, &tempNorm);
-            h_outnorm[iter] += tempNorm;
+            h_outnorm[iter + ibin * n_iter] = (float)sqrt(tempNorm * tempNorm + h_outnorm[iter + ibin * n_iter] * h_outnorm[iter + ibin * n_iter]);
             // backprojecting the difference of projections
             kernel_backprojection(d_tempImg, d_tempProj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
 
@@ -328,9 +332,13 @@ for (int ibin = n_bin - 1; ibin > -1; ibin--){
             cudaDeviceSynchronize();          
             // mexPrintf("13");mexEvalString("drawnow;");
         }  
-    }
+    if (errp > h_outnorm[ibin * n_iter + iter])
+        errp = h_outnorm[ibin * n_iter + iter];
+    else
+        break;
     cudaMemcpy(d_img1, d_img, numBytesImg, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(h_outimg + ibin * numImg, d_img, numBytesImg, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_outimg + ibin * numImg, d_img, numBytesImg, cudaMemcpyDeviceToHost);   
+    }
 }
 
 cudaFree(d_mx);
