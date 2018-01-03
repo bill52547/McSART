@@ -273,7 +273,7 @@ for (int ibin = n_bin - 1; ibin > -1; ibin--){
 
         host_deformation(d_img, d_img1, d_mx, d_my, d_mz, nx, ny, nz); 
     }
-
+    float errp = 100000000000.0f;
     for (int iter = 0; iter < n_iter; iter++){ // iteration
         processBar(n_bin - ibin - 1, n_bin, iter, n_iter);
         for (int i_view = n_views[ibin]; i_view < n_views[ibin + 1]; i_view++){ // view
