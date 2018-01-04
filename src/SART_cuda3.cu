@@ -58,12 +58,12 @@ h_const_y = (float*)mxGetData(mxGetField(ITER_PARA, 0, "const_y"));
 h_const_z = (float*)mxGetData(mxGetField(ITER_PARA, 0, "const_z"));
 angles = (float*)mxGetData(mxGetField(ITER_PARA, 0, "angles"));
 
-float *volumes, *ref_volumes, *flows, *ref_flows;
+float *volumes, *ref_volumes, *flows, *ref_flows, *err_weights;
 volumes = (float*)mxGetData(mxGetField(ITER_PARA, 0, "volumes"));
 ref_volumes = (float*)mxGetData(mxGetField(ITER_PARA, 0, "volume0"));
 flows = (float*)mxGetData(mxGetField(ITER_PARA, 0, "flows"));
 ref_flows = (float*)mxGetData(mxGetField(ITER_PARA, 0, "flow0"));
-
+err_weights = (float*)mxGetData(mxGetField(ITER_PARA, 0, "err_weights"));
 // load initial guess of image
 float *h_img;
 h_img = (float*)mxGetData(IN_IMG);
@@ -214,7 +214,7 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             cudaDeviceSynchronize();
 
             stat = cublasSnrm2(handle, na * nb, d_tempProj, 1, &tempNorm);
-            h_outnorm[iter + ibin * n_iter] = (float)sqrt(tempNorm * tempNorm + h_outnorm[iter + ibin * n_iter] * h_outnorm[iter + ibin * n_iter]);
+            h_outnorm[iter + ibin * n_iter] = (float)sqrt(tempNorm * tempNorm / err_weights[i_view] + h_outnorm[iter + ibin * n_iter] * h_outnorm[iter + ibin * n_iter]);
 
             // backprojecting the difference of projections
             kernel_backprojection(d_tempImg, d_tempProj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
@@ -307,7 +307,7 @@ for (int ibin = n_bin - 1; ibin > -1; ibin--){
             kernel_add<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_proj, na, nb, 1, -1);
             cudaDeviceSynchronize();
             stat = cublasSnrm2(handle, na * nb, d_tempProj, 1, &tempNorm);
-            h_outnorm[iter + ibin * n_iter] = (float)sqrt(tempNorm * tempNorm + h_outnorm[iter + ibin * n_iter] * h_outnorm[iter + ibin * n_iter]);
+            h_outnorm[iter + ibin * n_iter] = (float)sqrt(tempNorm * tempNorm / err_weights[i_view] + h_outnorm[iter + ibin * n_iter] * h_outnorm[iter + ibin * n_iter]);
             // backprojecting the difference of projections
             kernel_backprojection(d_tempImg, d_tempProj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
 
