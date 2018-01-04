@@ -144,9 +144,7 @@ float *h_outimg = (float*)mxGetData(OUT_IMG);
 
 
 for (int ibin = 0; ibin < n_bin; ibin++){
-    if (outIter % 2 == 1)
-        break;
-    if (outIter >= 0)
+    if (outIter == 0)
     {
         cudaMemcpy(d_img, h_img + ibin * numImg, numBytesImg, cudaMemcpyHostToDevice);
     }
@@ -220,93 +218,6 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             kernel_division<<<gridSize_img, blockSize>>>(d_tempImg, d_onesImg, nx, ny, nz);
             cudaDeviceSynchronize();
 
-            host_deformation(d_tempImg2, d_tempImg, d_mx, d_my, d_mz, nx, ny, nz);
-
-            // updating
-            kernel_update<<<gridSize_img, blockSize>>>(d_img, d_tempImg2, nx, ny, nz, lambda);
-            cudaDeviceSynchronize();          
-            // mexPrintf("13");mexEvalString("drawnow;");
-        }  
-    }
-    cudaMemcpy(d_img1, d_img, numBytesImg, cudaMemcpyDeviceToDevice);
-    cudaMemcpy(h_outimg + ibin * numImg, d_img, numBytesImg, cudaMemcpyDeviceToHost);
-}
-
-for (int ibin = n_bin - 1; ibin > -1; ibin--){
-    if (outIter % 2 == 0)
-        break;
-    if (outIter == 0)
-    {
-        cudaMemcpy(d_img, h_img + ibin * numImg, numBytesImg, cudaMemcpyHostToDevice);
-    }
-    else{
-        if (ibin == n_bin - 1){
-            cudaMemcpy(d_img1, h_img, numBytesImg, cudaMemcpyHostToDevice);
-        }
-        if (ibin == n_bin - 1){
-            volume = ref_volumes[n_bin - 1] - ref_volumes[0];
-            flow = ref_flows[n_bin - 1] - ref_flows[0];
-        }
-        else{
-            volume = ref_volumes[ibin] - ref_volumes[ibin + 1];
-            flow = ref_flows[ibin] - ref_flows[ibin + 1];
-        }
-        kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z, d_const_x, d_const_y, d_const_z, volume, flow, isConst, nx, ny, nz);
-        cudaDeviceSynchronize();
-
-        host_deformation(d_img, d_img1, d_mx, d_my, d_mz, nx, ny, nz); 
-    }
-
-    for (int iter = 0; iter < n_iter; iter++){ // iteration
-        processBar(n_bin - ibin - 1, n_bin, iter, n_iter);
-        for (int i_view = n_views[ibin]; i_view < n_views[ibin + 1]; i_view++){ // view
-        
-            angle = angles[i_view];
-            if (isConst)
-            {
-                volume = volumes[i_view]; // - ref_volumes[ibin];
-                flow = flows[i_view]; // - ref_flows[ibin];
-            }
-            else
-            {
-                volume = volumes[i_view] - ref_volumes[ibin];
-                flow = flows[i_view] - ref_flows[ibin];
-            }
-            
-            // generate forwards DVFs: d_mx, d_my, d_mz and inverted DVFs: d_mx2, d_my2, d_mz2
-            kernel_forwardDVF<<<gridSize_img, blockSize>>>(d_mx, d_my, d_mz, d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z, d_const_x, d_const_y, d_const_z, volume, flow, isConst, nx, ny, nz);
-            cudaDeviceSynchronize();
-            host_invertDVF(d_mx2, d_my2, d_mz2, d_mx, d_my, d_mz, nx, ny, nz, 10);
-            host_deformation(d_tempImg, d_img, d_mx2, d_my2, d_mz2, nx, ny, nz);
-
-            // projection of deformed image from initial guess
-            kernel_projection<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_tempImg, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
-            cudaDeviceSynchronize();
-
-            // difference between true projection and projection from initial guess
-            // update d_tempProj instead of malloc a new one
-            cudaMemcpy(d_proj, h_proj + i_view * numSingleProj, numBytesSingleProj, cudaMemcpyHostToDevice);
-
-            kernel_add<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_proj, na, nb, 1, -1);
-            cudaDeviceSynchronize();
-
-            // backprojecting the difference of projections
-            kernel_backprojection(d_tempImg, d_tempProj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
-
-            // calculate the ones backprojection data
-            kernel_initial<<<gridSize_img, blockSize>>>(d_onesImg, nx, ny, nz, 1);
-            cudaDeviceSynchronize();
-
-            kernel_projection<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_onesImg, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
-            cudaDeviceSynchronize();
-
-            kernel_backprojection(d_onesImg, d_tempProj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
-            cudaDeviceSynchronize();
-
-            // weighting
-            kernel_division<<<gridSize_img, blockSize>>>(d_tempImg, d_onesImg, nx, ny, nz);
-            cudaDeviceSynchronize();
-            
             host_deformation(d_tempImg2, d_tempImg, d_mx, d_my, d_mz, nx, ny, nz);
 
             // updating

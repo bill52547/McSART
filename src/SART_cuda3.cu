@@ -155,9 +155,9 @@ stat = cublasCreate(&handle);
 float tempNorm;
 
 for (int ibin = 0; ibin < n_bin; ibin++){
-    if (outIter % 2 == 1)
-        break;
-    if (outIter >= 0)
+    // if (outIter % 2 == 1)
+    //     break;
+    if (outIter == 0)
     {
         cudaMemcpy(d_img, h_img + ibin * numImg, numBytesImg, cudaMemcpyHostToDevice);
     }
