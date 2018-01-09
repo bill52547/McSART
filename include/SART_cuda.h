@@ -22,12 +22,13 @@
 #include "kernel_add.h" // kernel_add(d_proj1, d_proj, iv, na, nb, -1);
 #include "kernel_division.h" // kernel_division(d_img1, d_img, nx, ny, nz);
 #include "kernel_initial.h" // kernel_initial(img, nx, ny, nz, value);
-#include "kernel_update.h"
-#include "kernel_projection.h"
-#include "kernel_backprojection.h"
-#include "host_deformation.h"
-#include "kernel_forwardDVF.h"
-#include "kernel_invertDVF.h" 
+#include "kernel_update.h" // kernel_update(d_img1, d_img, nx, ny, nz, lambda);
+#include "kernel_projection.h" // kernel_projection(d_proj, d_img, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
+#include "kernel_backprojection.h" // kernel_backprojection(d_img, d_proj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
+#include "kernel_deformation.h" // kernel_deformation(float *img1, float *img, float *mx2, float *my2, float *mz2, int nx, int ny, int nz);
+#include "kernel_forwardDVF.h" // kernel_forwardDVF(float *mx, float *my, float *mz, cudaTextureObject_t alpha_x, cudaTextureObject_t alpha_y, cudaTextureObject_t alpha_z, cudaTextureObject_t beta_x, cudaTextureObject_t beta_y, cudaTextureObject_t beta_z,   cudaTextureObject_t const_x, cudaTextureObject_t const_y, cudaTextureObject_t const_z, float volume, float flow, int nx, int ny, int nz);
+#include "kernel_invertDVF.h" //__global__ kernel_invertedDVF(float *mx2, float *my2, float *mz2, cudaTextureObject_t alpha_x, cudaTextureObject_t alpha_y, cudaTextureObject_t alpha_z, cudaTextureObject_t beta_x, cudaTextureObject_t beta_y, cudaTextureObject_t beta_z, int nx, int ny, int nz, int niter);
+// #include "dist_cuda_functions.h"
+// #include 
 #include "processBar.h"
-#include "host_load_field.h"
 #endif // _SART_CUDA_H

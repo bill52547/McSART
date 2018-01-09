@@ -73,6 +73,7 @@ cudaDeviceSynchronize();
 
 cudaMemcpy(h_outimg, d_img1, nx * ny * nz * sizeof(float), cudaMemcpyDeviceToHost);
 
+cudaCreateTextureObject(&tex_img, &resDesc, &texDesc, NULL);
 cudaFreeArray(array_img);
 cudaFree(d_mx);
 cudaFree(d_my);
