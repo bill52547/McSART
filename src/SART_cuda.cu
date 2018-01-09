@@ -8,7 +8,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, mxArray const *prhs[])
 #define GEO_PARA prhs[2]
 #define ITER_PARA prhs[3]
 #define OUT_IMG plhs[0]
-// #define OUT_ERR plhs[1]
+#define OUT_ERR plhs[1]
 
 
 int nx = load_int_field(GEO_PARA, "nx");
@@ -58,11 +58,12 @@ h_const_y = (float*)mxGetData(mxGetField(ITER_PARA, 0, "const_y"));
 h_const_z = (float*)mxGetData(mxGetField(ITER_PARA, 0, "const_z"));
 angles = (float*)mxGetData(mxGetField(ITER_PARA, 0, "angles"));
 
-float *volumes, *ref_volumes, *flows, *ref_flows;
+float *volumes, *ref_volumes, *flows, *ref_flows, *err_weights;
 volumes = (float*)mxGetData(mxGetField(ITER_PARA, 0, "volumes"));
 ref_volumes = (float*)mxGetData(mxGetField(ITER_PARA, 0, "volume0"));
 flows = (float*)mxGetData(mxGetField(ITER_PARA, 0, "flows"));
 ref_flows = (float*)mxGetData(mxGetField(ITER_PARA, 0, "flow0"));
+err_weights = (float*)mxGetData(mxGetField(ITER_PARA, 0, "err_weights"));
 
 // load initial guess of image
 float *h_img;
@@ -141,7 +142,20 @@ mxSetDimensions(OUT_IMG, outDim, 4);
 mxSetData(OUT_IMG, mxMalloc(numBytesImg * n_bin));
 float *h_outimg = (float*)mxGetData(OUT_IMG);
 
+// OUT_ERR = mxCreateNumericMatrix(n_bin * n_iter, 1, mxSINGLE_CLASS, mxREAL);
+// float *h_outnorm = (float*)mxGetData(OUT_ERR);
+OUT_ERR = mxCreateNumericMatrix(0, 0, mxSINGLE_CLASS, mxREAL);
+const mwSize outDim2[2] = {(mwSize)n_iter, (mwSize)n_bin};
+mxSetDimensions(OUT_ERR, outDim2, 2);
+float *h_outnorm = (float*)mxGetData(OUT_ERR);
+mxSetData(OUT_ERR, mxMalloc(n_iter * n_bin * sizeof(float)));
+for (int i = 0; i < n_bin * n_iter; i++)
+    h_outnorm[i] = 0.0f;
 
+cublasStatus_t stat;
+cublasHandle_t handle;
+stat = cublasCreate(&handle); 
+float tempNorm;
 
 for (int ibin = 0; ibin < n_bin; ibin++){
     if (outIter == 0)
@@ -200,6 +214,8 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             kernel_add<<<gridSize_singleProj, blockSize>>>(d_tempProj, d_proj, na, nb, 1, -1);
             cudaDeviceSynchronize();
 
+            stat = cublasSnrm2(handle, na * nb, d_tempProj, 1, &tempNorm);
+            h_outnorm[iter + ibin * n_iter] += tempNorm * tempNorm / err_weights[i_view];
 
             // backprojecting the difference of projections
             kernel_backprojection(d_tempImg, d_tempProj, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
@@ -246,6 +262,8 @@ cudaFree(d_tempProj);
 
 cudaFree(d_img);
 cudaFree(d_img1);
+cublasDestroy(handle);
+
 cudaDeviceReset();
 return;
 }
