@@ -530,7 +530,7 @@ copyParams.kind = cudaMemcpyDeviceToDevice;
 for (int ibin = 0; ibin < n_bin; ibin++){
     if (outIter == 0)
     {
-        cudaMemcpy(d_img, h_img, numBytesImg, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_img, h_img + ibin * numImg, numBytesImg, cudaMemcpyHostToDevice);
     }
     else{
         if (ibin < 1){
@@ -678,18 +678,13 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             // difference between true projection and projection from initial guess
             // update d_singleViewProj2 instead of malloc a new one
             cudaMemcpy(d_proj, h_proj + i_view * numSingleProj, numBytesSingleProj, cudaMemcpyHostToDevice);
-            // mexPrintf("i_view = %d.\n", i_view);mexEvalString("drawnow;");
 
             kernel_add<<<gridSize_singleProj, blockSize>>>(d_singleViewProj2, d_proj, 0, na, nb, -1);
             cudaDeviceSynchronize();
-            // cublasSnrm2_v2(handle, na * nb, d_singleViewProj2, 1, temp_err);
-            // h_outerr[iter] += temp_err[0];
 
             stat = cublasSnrm2(handle, na * nb, d_singleViewProj2, 1, &tempNorm);
             h_outnorm[iter + ibin * n_iter] += tempNorm * tempNorm / err_weights[i_view];
-
-            // backprojecting the difference of projections
-            // print parameters              
+           
             kernel_backprojection(d_singleViewImg1, d_singleViewProj2, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
 
             // calculate the ones backprojection data
@@ -697,9 +692,6 @@ for (int ibin = 0; ibin < n_bin; ibin++){
             cudaDeviceSynchronize();
             kernel_projection<<<gridSize_singleProj, blockSize>>>(d_singleViewProj2, d_imgOnes, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
             cudaDeviceSynchronize();
-
-            // kernel_backprojection<<<gridSize_img, blockSize>>>(d_singleViewImg1, d_singleViewProj2, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
-            // cudaDeviceSynchronize();
 
             kernel_backprojection(d_imgOnes, d_singleViewProj2, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
 
