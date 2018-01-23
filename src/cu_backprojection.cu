@@ -1,6 +1,11 @@
-#include "kernel_backprojection.h"
+#include "cu_backprojection.h"
 
-__host__ void kernel_backprojection(float *d_img, float *d_proj, float angle,float SO, float SD, float da, int na, float ai, float db, int nb, float bi, int nx, int ny, int nz)
+__host__ void host2_backprojection(float *d_img, float *d_proj, float *float_para, int *int_para)
+{
+
+}
+
+__host__ void host_backprojection(float *d_img, float *d_proj, float angle,float SO, float SD, float da, int na, float ai, float db, int nb, float bi, int nx, int ny, int nz)
 {
     cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
     struct cudaExtent extent = make_cudaExtent(na, nb, 1);
@@ -31,18 +36,9 @@ __host__ void kernel_backprojection(float *d_img, float *d_proj, float angle,flo
     // cudaTextureObject_t tex_proj = host_create_texture_object(d_proj, nb, na, 1);
     cudaCreateTextureObject(&tex_proj, &resDesc, &texDesc, NULL);
 
-    const dim3 gridSize_img((nx + BLOCKWIDTH - 1) / BLOCKWIDTH, (ny + BLOCKHEIGHT - 1) / BLOCKHEIGHT, (nz + BLOCKDEPTH - 1) / BLOCKDEPTH);
-    const dim3 blockSize(BLOCKWIDTH, BLOCKHEIGHT, BLOCKDEPTH);
-	// mexPrintf("angle = %f.\n", angle);
-	// mexPrintf("SO = %f.\n", SO);
-	// mexPrintf("SD = %f.\n", SD);
-	// mexPrintf("na = %d.\n", na);
-	// mexPrintf("nb = %d.\n", nb);
-	// mexPrintf("da = %f.\n", da);
-	// mexPrintf("db = %f.\n", db);
-	// mexPrintf("ai = %f.\n", ai);
-	// mexPrintf("bi = %f.\n", bi);
-    kernel<<<gridSize_img, blockSize>>>(d_img, tex_proj, angle, SO, SD, na, nb, da, db, ai, bi, nx, ny, nz);
+    const dim3 gridSize_img((nx + BLOCKSIZE_X - 1) / BLOCKSIZE_X, (ny + BLOCKSIZE_Y - 1) / BLOCKSIZE_Y, (nz + BLOCKSIZE_Z - 1) / BLOCKSIZE_Z);
+    const dim3 blockSize(BLOCKSIZE_X, BLOCKSIZE_Y, BLOCKSIZE_Z);
+	kernel_backprojection<<<gridSize_img, blockSize>>>(d_img, tex_proj, angle, SO, SD, na, nb, da, db, ai, bi, nx, ny, nz);
     cudaDeviceSynchronize();
 
     cudaFreeArray(array_proj);
@@ -50,10 +46,10 @@ __host__ void kernel_backprojection(float *d_img, float *d_proj, float angle,flo
 }
 
 
-__global__ void kernel(float *img, cudaTextureObject_t tex_proj, float angle, float SO, float SD, int na, int nb, float da, float db, float ai, float bi, int nx, int ny, int nz){
-    int ix = BLOCKWIDTH * blockIdx.x + threadIdx.x;
-    int iy = BLOCKHEIGHT * blockIdx.y + threadIdx.y;
-    int iz = BLOCKDEPTH * blockIdx.z + threadIdx.z;
+__global__ void kernel_backprojection(float *img, cudaTextureObject_t tex_proj, float angle, float SO, float SD, int na, int nb, float da, float db, float ai, float bi, int nx, int ny, int nz){
+    int ix = BLOCKSIZE_X * blockIdx.x + threadIdx.x;
+    int iy = BLOCKSIZE_Y * blockIdx.y + threadIdx.y;
+    int iz = BLOCKSIZE_Z * blockIdx.z + threadIdx.z;
     if (ix >= nx || iy >= ny || iz >= nz)
         return;
 

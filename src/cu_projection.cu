@@ -1,12 +1,20 @@
-#include <math.h>
-#define ABS(x) ((x) > 0 ? (x) : - (x))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX4(a, b, c, d) MAX(MAX(a, b), MAX(c, d))
-#define MIN4(a, b, c, d) MIN(MIN(a, b), MIN(c, d))
+#include "cu_projection.h"
+__host__ void host2_projection(float *proj, float *img, float angle, float SO, float SD, float da, int na, float ai, float db, int nb, float bi, int nx, int ny, int nz)
+{
+    
+}
+
+__host__ void host_projection(float *d_proj, float *d_img, float angle, float SO, float SD, float da, int na, float ai, float db, int nb, float bi, int nx, int ny, int nz)
+{
+    const dim3 gridSize_singleProj((na + BLOCKSIZE_X - 1) / BLOCKSIZE_X, (nb + BLOCKSIZE_Y - 1) / BLOCKSIZE_Y, 1);
+    const dim3 blockSize(BLOCKSIZE_X,BLOCKSIZE_Y, BLOCKSIZE_Z);
+    kernel_projection<<<gridSize_singleProj, blockSize>>>(d_proj, d_img, angle, SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
+    cudaDeviceSynchronize();
+}
+
 __global__ void kernel_projection(float *proj, float *img, float angle, float SO, float SD, float da, int na, float ai, float db, int nb, float bi, int nx, int ny, int nz){
-    int ia = 16 * blockIdx.x + threadIdx.x;
-    int ib = 16 * blockIdx.y + threadIdx.y;
+    int ia = BLOCKSIZE_X * blockIdx.x + threadIdx.x;
+    int ib = BLOCKSIZE_Y * blockIdx.y + threadIdx.y;
     if (ia >= na || ib >= nb)
         return;
     int id = ia + ib * na;

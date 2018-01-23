@@ -16,5 +16,5 @@ void processBar(int i1, int n1, int i2, int n2)
     }
     mexPrintf("] step = %d\n", step);
 
-    mexPrintf("Iter (%d / %d), Frac (%d / %d), Total (%d / %d).\n", i1 + 1, n1, i2 + 1, n2, id, N);mexEvalString("drawnow;");
+    mexPrintf("View (%d / %d), Iter (%d / %d), Total (%d / %d).\n", i1 + 1, n1, i2 + 1, n2, id, N);mexEvalString("drawnow;");
 }
