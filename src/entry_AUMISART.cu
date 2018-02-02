@@ -183,9 +183,15 @@ mxSetDimensions(plhs[2], outDim, 3);
 mxSetData(plhs[2], mxMalloc(nx * ny * nz * sizeof(float)));
 float *h_outalphax = (float*)mxGetData(plhs[2]);
 
+const mwSize outDim2[3] = {(mwSize)na, (mwSize)nb, (mwSize)n_views};
+plhs[3] = mxCreateNumericMatrix(0, 0, mxSINGLE_CLASS, mxREAL);
+mxSetDimensions(plhs[3], outDim2, 3);
+mxSetData(plhs[3], mxMalloc(na * nb * n_views * sizeof(float)));
+float *h_outproj = (float*)mxGetData(plhs[3]);
+
 mexPrintf("Start main body of AUMISART. \n");
 
-host_AUMISART(h_outimg, h_outnorm, h_outalphax, h_img, h_proj, nx, ny, nz, na, nb, outIter, n_views, n_iter, op_iter, da, db, ai, bi, SO, SD, dx, lambda, volumes, flows, err_weights, angles);
+host_AUMISART(h_outimg, h_outproj, h_outnorm, h_outalphax, h_img, h_proj, nx, ny, nz, na, nb, outIter, n_views, n_iter, op_iter, da, db, ai, bi, SO, SD, dx, lambda, volumes, flows, err_weights, angles);
 
 return;
 }

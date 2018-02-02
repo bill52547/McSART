@@ -1,6 +1,6 @@
 #include "AUMISART.h" // consists all required package and functions
 
-__host__ void host_AUMISART(float *h_outimg, float *h_outnorm, float *h_outalphax, float *h_img, float *h_proj, int nx, int ny, int nz, int na, int nb, int outIter, int n_views, int n_iter, int *op_iter, float da, float db, float ai, float bi, float SO, float SD, float dx, float lambda, float* volumes, float* flows, float* err_weights, float* angles)
+__host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm, float *h_outalphax, float *h_img, float *h_proj, int nx, int ny, int nz, int na, int nb, int outIter, int n_views, int n_iter, int *op_iter, float da, float db, float ai, float bi, float SO, float SD, float dx, float lambda, float* volumes, float* flows, float* err_weights, float* angles)
 {
     float *d_img, *d_img0, *d_img_temp, *d_proj, *d_proj_temp, *d_img_ones, *d_proj_ones;
     int numBytesImg = nx * ny * nz * sizeof(float);
@@ -50,7 +50,7 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outnorm, float *h_outalpha
                 host_add(d_proj, d_proj_temp, na, nb, 1, -1.0);
                 stat = cublasSnrm2(handle, na * nb, d_proj, 1, &tempNorm);
                 h_outnorm[i_iter * n_views + i_view] = tempNorm / tempNorm0;
-            
+                cudaMemcpy(h_outproj + na * nb * i_view, d_proj, numBytesProj, cudaMemcpyDeviceToHost);
                 host_backprojection(d_img_temp, d_proj, angles[i_view], SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
 
                 host_initial(d_img_ones, nx, ny, nz, 1.0f);
@@ -68,8 +68,8 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outnorm, float *h_outalpha
             if (i_iter == 0)
                 cudaMemcpy(d_img, h_img, numBytesImg, cudaMemcpyHostToDevice);
             else
-                cudaMemcpy(d_img, h_outimg, numBytesImg, cudaMemcpyHostToDevice);   
-            for (int i_view = 1; i_view < n_views; i_view ++)
+                cudaMemcpy(d_img, h_outimg, numBytesImg, cudaMemcpyHostToDevice);
+            for (int i_view = 1; i_view < n_views; i_view += 10)
             {   
                 mexPrintf("iIter = %d / %d, and iView = %d / %d.", i_iter + 1, n_iter, i_view + 1, n_views); 
 
