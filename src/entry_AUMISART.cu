@@ -190,9 +190,22 @@ mxSetData(plhs[3], mxMalloc(na * nb * n_views * sizeof(float)));
 float *h_outproj = (float*)mxGetData(plhs[3]);
 
 mexPrintf("Start main body of AUMISART. \n");
-
-host_AUMISART(h_outimg, h_outproj, h_outnorm, h_outalphax, h_img, h_proj, nx, ny, nz, na, nb, outIter, n_views, n_iter, op_iter, da, db, ai, bi, SO, SD, dx, lambda, volumes, flows, err_weights, angles);
-
+if (mxGetField(ITER_PARA, 0, "alpha_x") == NULL)
+{
+    host_AUMISART(h_outimg, h_outproj, h_outnorm, h_outalphax, h_img, h_proj, nx, ny, nz, na, nb, outIter, n_views, n_iter, op_iter, da, db, ai, bi, SO, SD, dx, lambda, volumes, flows, err_weights, angles);
+}
+else
+{
+    float *alpha_x, *alpha_y, *alpha_z, *beta_x, *beta_y, *beta_z;
+    alpha_x = (float*)mxGetData(mxGetField(ITER_PARA, 0, "alpha_x"));
+    alpha_y = (float*)mxGetData(mxGetField(ITER_PARA, 0, "alpha_y"));
+    alpha_z = (float*)mxGetData(mxGetField(ITER_PARA, 0, "alpha_z"));
+    beta_x = (float*)mxGetData(mxGetField(ITER_PARA, 0, "beta_x"));
+    beta_y = (float*)mxGetData(mxGetField(ITER_PARA, 0, "beta_y"));
+    beta_z = (float*)mxGetData(mxGetField(ITER_PARA, 0, "beta_z"));
+    host_AUMISART(h_outimg, h_outproj, h_outnorm, h_outalphax, h_img, h_proj, nx, ny, nz, na, nb, outIter, n_views, n_iter, op_iter, da, db, ai, bi, SO, SD, dx, lambda, volumes, flows, err_weights, angles, alpha_x, alpha_y, alpha_z, beta_x, beta_y, beta_z);
+}
+    
 return;
 }
 

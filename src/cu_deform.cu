@@ -45,6 +45,20 @@ __host__ void host_deform(float *d_img1, float *d_img, int nx, int ny, int nz, f
     cudaDestroyTextureObject(tex_img);
 }
 
+__host__ void host_deform2(float *d_img1, float *d_img, int nx, int ny, int nz, float volume, float flow, float *alpha_x, float *alpha_y, float *alpha_z, float *beta_x, float *beta_y, float *beta_z)
+{
+    const dim3 gridSize((nx + BLOCKSIZE_X - 1) / BLOCKSIZE_X, (ny + BLOCKSIZE_Y - 1) / BLOCKSIZE_Y, (nz + BLOCKSIZE_Z - 1) / BLOCKSIZE_Z);
+    const dim3 blockSize(BLOCKSIZE_X, BLOCKSIZE_Y, BLOCKSIZE_Z);
+    float *mx, *my, *mz;
+    cudaMalloc((void**)&mx, nx * ny * nz * sizeof(float));
+    cudaMalloc((void**)&my, nx * ny * nz * sizeof(float));
+    cudaMalloc((void**)&mz, nx * ny * nz * sizeof(float));
+    kernel_forwardDVF<<<gridSize, blockSize>>>(mx, my, mz, alpha_x, alpha_y, alpha_z, beta_x, beta_y, beta_z, volume, flow, nx, ny, nz);
+    cudaDeviceSynchronize();
+    kernel_deformation2<<<gridSize, blockSize>>>(d_img1, d_img, mx, my, mz, nx, ny, nz);
+    cudaDeviceSynchronize();
+}
+
 __global__ void kernel_forwardDVF(float *mx, float *my, float *mz, float *alpha_x, float *alpha_y, float *alpha_z, float *beta_x, float *beta_y, float *beta_z, float volume, float flow, int nx, int ny, int nz)
 {
     int ix = BLOCKSIZE_X * blockIdx.x + threadIdx.x;
@@ -58,15 +72,38 @@ __global__ void kernel_forwardDVF(float *mx, float *my, float *mz, float *alpha_
     mz[id] = alpha_z[id] * volume + beta_z[id] * flow;
 }
 
-__global__ void kernel_deformation(float *img1, cudaTextureObject_t tex_img, float *mx2, float *my2, float *mz2, int nx, int ny, int nz){
+__global__ void kernel_deformation(float *img1, cudaTextureObject_t tex_img, float *mx, float *my, float *mz, int nx, int ny, int nz){
     int ix = BLOCKSIZE_X * blockIdx.x + threadIdx.x;
     int iy = BLOCKSIZE_Y * blockIdx.y + threadIdx.y;
     int iz = BLOCKSIZE_Z * blockIdx.z + threadIdx.z;
     if (ix >= nx || iy >= ny || iz >= nz)
         return;
     int id = iy + ix * ny + iz * nx * ny;
-    float xi = iy + my2[id];
-    float yi = ix + mx2[id];
-    float zi = iz + mz2[id];
+    float xi = iy + my[id];
+    float yi = ix + mx[id];
+    float zi = iz + mz[id];
     img1[id] = tex3D<float>(tex_img, xi + 0.5f, yi + 0.5f, zi + 0.5f);
+}
+
+__global__ void kernel_deformation2(float *img1, float *img, float *mx, float *my, float *mz, int nx, int ny, int nz){
+    int ix = BLOCKSIZE_X * blockIdx.x + threadIdx.x;
+    int iy = BLOCKSIZE_Y * blockIdx.y + threadIdx.y;
+    int iz = BLOCKSIZE_Z * blockIdx.z + threadIdx.z;
+    if (ix >= nx || iy >= ny || iz >= nz)
+        return;
+    int id = iy + ix * ny + iz * nx * ny;
+    float dx, dy, dz;
+    if (ix == nx - 1)
+        dx = 0;
+    else
+        dx = img[id + 1] - img[id];
+    if (iy == ny - 1)
+        dy = 0;
+    else
+        dy = img[id + nx] - img[id];
+    if (iz == nz - 1)
+        dz = 0;
+    else
+        dz = img[id + nx * ny] - img[id];
+    img1[id] = img[id] + dy * mx[id] + dx * my[id] + dz * mz[id];
 }
