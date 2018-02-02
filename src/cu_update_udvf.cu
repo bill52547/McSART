@@ -42,11 +42,11 @@ __global__ void kernel_update_udvf(float *alpha_x, float* alpha_y, float *alpha_
     float cbz = dfz * flow_diff;
     float w = cax * cax + cay * cay + caz * caz + cbx * cbx + cby * cby + cbz * cbz;
 
-    float ax = alpha_x[id];
-    float ay = alpha_y[id];
+    float ax = alpha_y[id];
+    float ay = alpha_x[id];
     float az = alpha_z[id];
-    float bx = beta_x[id];
-    float by = beta_y[id];
+    float bx = beta_y[id];
+    float by = beta_x[id];
     float bz = beta_z[id];
     float b = dfI - cax * ax - cay * ay - caz * az - cbx * bx - cby * by - cbz * bz;
     if (w == 0)

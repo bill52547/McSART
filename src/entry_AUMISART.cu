@@ -10,7 +10,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, mxArray const *prhs[])
 #define OUT_IMG plhs[0]
 // #define OUT_ERR plhs[1]
 
-int nx, ny, nz, na, nb, outIter, n_iter, n_views;
+int nx, ny, nz, na, nb, outIter, n_iter, *op_iter, n_views;
 float da, db, ai, bi, SO, SD, dx, lambda;
 float *volumes, *flows, *err_weights, *angles;
 
@@ -116,6 +116,11 @@ else{
     mexPrintf("If don't want that default value, please set iter_para.n_iter manually.\n");
 }
 
+if (mxGetField(ITER_PARA, 0, "op_iter") != NULL)
+    op_iter = (int*)mxGetData(mxGetField(ITER_PARA, 0, "op_iter")); // number of views in this bin
+else{
+    mexErrMsgIdAndTxt("MATLAB:badInput","Can't found valid iteration distribution as iter_para.op_iter.\n");
+}
 
 if (mxGetField(ITER_PARA, 0, "n_views") != NULL)
     n_views = (int)mxGetScalar(mxGetField(ITER_PARA, 0, "n_views"));
@@ -173,9 +178,14 @@ float *h_outimg = (float*)mxGetData(OUT_IMG);
 plhs[1] = mxCreateNumericMatrix(n_iter * n_views, 1, mxSINGLE_CLASS, mxREAL);
 float *h_outnorm = (float*)mxGetData(plhs[1]);
 
+plhs[2] = mxCreateNumericMatrix(0, 0, mxSINGLE_CLASS, mxREAL);
+mxSetDimensions(plhs[2], outDim, 3);
+mxSetData(plhs[2], mxMalloc(nx * ny * nz * sizeof(float)));
+float *h_outalphax = (float*)mxGetData(plhs[2]);
+
 mexPrintf("Start main body of AUMISART. \n");
 
-host_AUMISART(h_outimg, h_outnorm, h_img, h_proj, nx, ny, nz, na, nb, outIter, n_views, n_iter, da, db, ai, bi, SO, SD, dx, lambda, volumes, flows, err_weights, angles);
+host_AUMISART(h_outimg, h_outnorm, h_outalphax, h_img, h_proj, nx, ny, nz, na, nb, outIter, n_views, n_iter, op_iter, da, db, ai, bi, SO, SD, dx, lambda, volumes, flows, err_weights, angles);
 
 return;
 }

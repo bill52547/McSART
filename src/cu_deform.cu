@@ -31,8 +31,8 @@ __global__ void kernel_deform(float *d_img1, float *d_img, int nx, int ny, int n
     else
         dfz = d_img[id + nx * ny] - d_img[id];
     d_img1[id] = d_img[id] 
-    - dfx * (alpha_x[id] * volume_diff + beta_x[id] * flow_diff)
-    - dfy * (alpha_y[id] * volume_diff + beta_y[id] * flow_diff)
+    - dfx * (alpha_y[id] * volume_diff + beta_y[id] * flow_diff)
+    - dfy * (alpha_x[id] * volume_diff + beta_x[id] * flow_diff)
     - dfz * (alpha_z[id] * volume_diff + beta_z[id] * flow_diff); 
     
 }
