@@ -41,8 +41,9 @@ __host__ void host_deform(float *d_img1, float *d_img, int nx, int ny, int nz, f
     cudaFree(mx);   
     cudaFree(my);   
     cudaFree(mz);   
-    cudaFreeArray(array_img);
     cudaDestroyTextureObject(tex_img);
+    cudaFreeArray(array_img);
+
 }
 
 __host__ void host_deform2(float *d_img1, float *d_img, int nx, int ny, int nz, float volume, float flow, float *alpha_x, float *alpha_y, float *alpha_z, float *beta_x, float *beta_y, float *beta_z)
@@ -57,6 +58,9 @@ __host__ void host_deform2(float *d_img1, float *d_img, int nx, int ny, int nz, 
     cudaDeviceSynchronize();
     kernel_deformation2<<<gridSize, blockSize>>>(d_img1, d_img, mx, my, mz, nx, ny, nz);
     cudaDeviceSynchronize();
+    cudaFree(mx);
+    cudaFree(my);
+    cudaFree(mz);
 }
 
 __global__ void kernel_forwardDVF(float *mx, float *my, float *mz, float *alpha_x, float *alpha_y, float *alpha_z, float *beta_x, float *beta_y, float *beta_z, float volume, float flow, int nx, int ny, int nz)
@@ -79,10 +83,10 @@ __global__ void kernel_deformation(float *img1, cudaTextureObject_t tex_img, flo
     if (ix >= nx || iy >= ny || iz >= nz)
         return;
     int id = iy + ix * ny + iz * nx * ny;
-    float xi = iy + my[id];
-    float yi = ix + mx[id];
-    float zi = iz + mz[id];
-    img1[id] = tex3D<float>(tex_img, xi + 0.5f, yi + 0.5f, zi + 0.5f);
+    float xi = iy + 1.0f + my[id];
+    float yi = ix + 1.0f + mx[id];
+    float zi = iz + 1.0f + mz[id];
+    img1[id] = tex3D<float>(tex_img, xi - 0.5f, yi - 0.5f, zi - 0.5f);
 }
 
 __global__ void kernel_deformation2(float *img1, float *img, float *mx, float *my, float *mz, int nx, int ny, int nz){

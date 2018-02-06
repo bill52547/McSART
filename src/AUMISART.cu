@@ -146,12 +146,15 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm,
     int numBytesImg = nx * ny * nz * sizeof(float);
     int numBytesProj = na * nb * sizeof(float);
     cudaMalloc((void**)&d_img, numBytesImg);
+    cudaMalloc((void**)&d_img1, numBytesImg);
     cudaMalloc((void**)&d_img0, numBytesImg);
     cudaMalloc((void**)&d_img_temp, numBytesImg);
     cudaMalloc((void**)&d_img_ones, numBytesImg);
     cudaMalloc((void**)&d_proj, numBytesProj);
     cudaMalloc((void**)&d_proj_temp, numBytesProj);
     cudaMalloc((void**)&d_proj_ones, numBytesProj);
+
+    cudaMemcpy(d_img, h_img, numBytesImg, cudaMemcpyHostToDevice);
 
     float *d_alpha_x, *d_alpha_y, *d_alpha_z, *d_beta_x, *d_beta_y, *d_beta_z;
     cudaMalloc((void**)&d_alpha_x, numBytesImg);
@@ -160,7 +163,6 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm,
     cudaMalloc((void**)&d_beta_x, numBytesImg);
     cudaMalloc((void**)&d_beta_y, numBytesImg);
     cudaMalloc((void**)&d_beta_z, numBytesImg);
-    cudaMemcpy(d_img, h_img, numBytesImg, cudaMemcpyHostToDevice);
     // host_initial(d_img, nx, ny, nz, 0.0f);
     cudaMemcpy(d_alpha_x, ax, numBytesImg, cudaMemcpyHostToDevice);
     cudaMemcpy(d_alpha_y, ay, numBytesImg, cudaMemcpyHostToDevice);
@@ -174,7 +176,7 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm,
     cublasHandle_t handle;
     stat = cublasCreate(&handle); 
     float tempNorm, tempNorm0;
-
+    int P = 1;
     for (int i_iter = 0; i_iter < n_iter; i_iter ++)
     {
         if (op_iter[i_iter] == 1)
@@ -182,19 +184,19 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm,
             for (int i_view = 0; i_view < n_views; i_view ++)
             {   
                 int iv1, iv2;
-                iv1 = i_view - i_view % 10;
-                iv2 = i_view % 10;
+                iv1 = i_view - i_view % P;
+                iv2 = i_view % P;
                 mexPrintf("iIter = %d / %d, and iView = %d / %d.\n", i_iter + 1, n_iter, i_view + 1, n_views); mexEvalString("drawnow;");
                 
-                if (i_view % 10 == 0)
+                if (i_view % P == 0)
                 {
-                    host_deform(d_img1, d_img, nx, ny, nz, volumes[i_view] - volumes[0], flows[i_view] - flows[0], ax, ay, az, bx, by, bz);
+                    host_deform(d_img1, d_img, nx, ny, nz, volumes[i_view] - volumes[0], flows[i_view] - flows[0], d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z);
                     host_projection(d_proj_temp, d_img1, angles[i_view], SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
                 }
-                else
+                else 
                 {
-                    host_deform(d_img1, d_img, nx, ny, nz, volumes[iv1] - volumes[0], flows[iv1] - flows[0], ax, ay, az, bx, by, bz);                    
-                    host_deform2(d_img_temp, d_img1, nx, ny, nz, volumes[i_view] - volumes[iv1], flows[i_view] - flows[iv1], ax, ay, az, bx, by, bz);   
+                    host_deform(d_img1, d_img, nx, ny, nz, volumes[iv1] - volumes[0], flows[iv1] - flows[0], d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z);                    
+                    host_deform2(d_img_temp, d_img1, nx, ny, nz, volumes[i_view] - volumes[iv1], flows[i_view] - flows[iv1], d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z);   
                     host_projection(d_proj_temp, d_img_temp, angles[i_view], SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
                 }
                     
@@ -203,7 +205,9 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm,
 
                 host_add(d_proj, d_proj_temp, na, nb, 1, -1.0);
                 stat = cublasSnrm2(handle, na * nb, d_proj, 1, &tempNorm);
+                // stat = cublasSnrm2(handle, nx * ny * nz, d_img1, 1, &tempNorm);
                 h_outnorm[i_iter * n_views + i_view] = tempNorm / tempNorm0;
+
                 cudaMemcpy(h_outproj + na * nb * i_view, d_proj, numBytesProj, cudaMemcpyDeviceToHost);
                 host_backprojection(d_img_temp, d_proj, angles[i_view], SO, SD, da, na, ai, db, nb, bi, nx, ny, nz);
 
@@ -213,18 +217,18 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm,
 
                 host_division(d_img_temp, d_img_ones, nx, ny, nz);
 
-                if (i_view % 10 == 0)
+                if (i_view % P == 0)
                 {
-                    host_deform(d_img1, d_img_temp, nx, ny, nz, volumes[0] - volumes[i_view], flows[0] - flows[i_view], ax, ay, az, bx, by, bz);
+                    host_deform(d_img1, d_img_temp, nx, ny, nz, volumes[0] - volumes[i_view], flows[0] - flows[i_view], d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z);
                     host_add(d_img, d_img1, nx, ny, nz, lambda);
                 }
                 else
                 {
-                    host_deform2(d_img1, d_img_temp, nx, ny, nz, volumes[iv1] - volumes[i_view], flows[iv1] - flows[i_view], ax, ay, az, bx, by, bz);
-                    host_deform(d_img_temp, d_img_temp, nx, ny, nz, volumes[0] - volumes[iv1], flows[0] - flows[iv1], ax, ay, az, bx, by, bz);                  
+                    host_deform2(d_img1, d_img_temp, nx, ny, nz, volumes[iv1] - volumes[i_view], flows[iv1] - flows[i_view], d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z);
+                    host_deform(d_img_temp, d_img_temp, nx, ny, nz, volumes[0] - volumes[iv1], flows[0] - flows[iv1], d_alpha_x, d_alpha_y, d_alpha_z, d_beta_x, d_beta_y, d_beta_z);                  
                     host_add(d_img, d_img_temp, nx, ny, nz, lambda);
                 }
-
+                // break;
                 // host_add(d_img, d_img_temp, nx, ny, nz, lambda);
             }
             cudaMemcpy(h_outimg, d_img, numBytesImg, cudaMemcpyDeviceToHost);
@@ -235,7 +239,7 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm,
                 cudaMemcpy(d_img, h_img, numBytesImg, cudaMemcpyHostToDevice);
             else
                 cudaMemcpy(d_img, h_outimg, numBytesImg, cudaMemcpyHostToDevice);
-            for (int i_view = 1; i_view < n_views; i_view += 10)
+            for (int i_view = 1; i_view < n_views; i_view += P)
             {   
                 mexPrintf("iIter = %d / %d, and iView = %d / %d.", i_iter + 1, n_iter, i_view + 1, n_views); 
 
@@ -286,10 +290,12 @@ __host__ void host_AUMISART(float *h_outimg, float *h_outproj, float *h_outnorm,
     }
     cudaMemcpy(h_outalphax, d_alpha_x, numBytesImg, cudaMemcpyDeviceToHost);
             
-    cudaMemcpy(h_outimg, d_img, numBytesImg, cudaMemcpyDeviceToHost);   
+    // cudaMemcpy(h_outimg, d_img, numBytesImg, cudaMemcpyDeviceToHost);   
 
     cudaFree(d_img);
     cudaFree(d_img1);
+    cudaFree(d_img0);
+
     cudaFree(d_img_temp);
     cudaFree(d_proj);
     cudaFree(d_proj_temp);
